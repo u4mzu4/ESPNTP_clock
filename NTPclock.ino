@@ -19,6 +19,7 @@
 //Global variables
 bool failSafe = false;
 strDateTime dateTime;
+unsigned long lastRefresh;
 const uint8_t SEG_FAIL[] = {
   SEG_A | SEG_E | SEG_F ,                          // F
   SEG_A | SEG_B | SEG_C | SEG_E | SEG_F | SEG_G,   // A
@@ -89,6 +90,7 @@ void WiFi_Config()
 
 void setup() {
   bool initRefresh = false;
+  unsigned long waitForExactMinute;
 
   display.clear();
   display.setBrightness(BRIGHTNESS, true);
@@ -102,10 +104,26 @@ void setup() {
   {
     display.setSegments(SEG_FAIL);
   }
+  waitForExactMinute = millis() + REFRESH - dateTime.second * 1000;
+  while (waitForExactMinute > millis())
+  {
+    delay(1000);
+  }
+  lastRefresh = millis();
+  dateTime.minute++;
+  if (dateTime.minute > MAXMIN)
+  {
+    dateTime.minute = 0;
+    dateTime.hour++;
+    if (dateTime.hour > MAXHOUR)
+    {
+      dateTime.hour = 0;
+    }
+  }
+  RefreshDisplay(dateTime.hour, dateTime.minute);
 }
 
 void loop() {
-  static unsigned long lastRefresh;
   bool validRefresh = false;
   byte storedHour;
 
