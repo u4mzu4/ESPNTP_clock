@@ -12,6 +12,9 @@
 #define TIMEOUT     5000    //5 sec
 #define BRIGHTNESS  2       //brightness
 #define REFRESH     60000   //1min
+#define MAXREFRESH  59
+#define MAXMIN      59
+#define MAXHOUR     23
 
 //Global variables
 bool failSafe = false;
@@ -36,19 +39,35 @@ void RefreshDisplay(byte dispH, byte dispM)
 
 bool RefreshDateTime()
 {
+  bool timeIsValid = false;
+  unsigned int refreshCounter = 0;
+
   if (failSafe)
   {
     return false;
   }
-  dateTime = NTPhu.getNTPtime(1.0, 1);
-  if ((dateTime.year < YEAR_MIN) || (dateTime.year > YEAR_MAX))
+  while (!timeIsValid)
   {
-    return false;
+    refreshCounter++;
+    if (refreshCounter > MAXREFRESH)
+    {
+      break;
+    }
+    dateTime = NTPhu.getNTPtime(1.0, 1);
+    if ((dateTime.year < YEAR_MIN) || (dateTime.year > YEAR_MAX))
+    {
+      timeIsValid = false;
+    }
+    else
+    {
+      timeIsValid = dateTime.valid;
+    }
+    if (!timeIsValid)
+    {
+      delay(1000);
+    }
   }
-  else
-  {
-    return dateTime.valid;
-  }
+  return timeIsValid;
 }
 
 void WiFi_Config()
@@ -70,23 +89,13 @@ void WiFi_Config()
 
 void setup() {
   bool initRefresh = false;
-  unsigned int refreshCounter = 0;
 
   display.clear();
   display.setBrightness(BRIGHTNESS, true);
   WiFi_Config();
-  if (!failSafe)
+  initRefresh = RefreshDateTime();
+  if (initRefresh)
   {
-    while (!initRefresh)
-    {
-      initRefresh = RefreshDateTime();
-      delay(1000);
-      refreshCounter++;
-      if (refreshCounter > 59)
-      {
-        break;
-      }
-    }
     RefreshDisplay(dateTime.hour, dateTime.minute);
   }
   else
@@ -97,35 +106,27 @@ void setup() {
 
 void loop() {
   static unsigned long lastRefresh;
-  unsigned int refreshCnt = 0;
   bool validRefresh = false;
   byte storedHour;
 
   if ((millis() - lastRefresh) > REFRESH)
   {
     dateTime.minute++;
-    if (dateTime.minute > 59)
+    if (dateTime.minute > MAXMIN)
     {
       storedHour = dateTime.hour;
-      while (!validRefresh)
+      validRefresh = RefreshDateTime();
+      if (!validRefresh)
       {
-        validRefresh = RefreshDateTime();
-        delay(1000);
-        refreshCnt++;
-        if (refreshCnt > 59)
+        dateTime.minute = 1;
+        dateTime.hour = storedHour + 1;
+        if (dateTime.hour > MAXHOUR)
         {
-          dateTime.minute = 1;
-          dateTime.hour = storedHour + 1;
-          if (dateTime.hour > 23)
-          {
-            dateTime.hour = 0;
-          }
-          break;
+          dateTime.hour = 0;
         }
       }
     }
     RefreshDisplay(dateTime.hour, dateTime.minute);
     lastRefresh = millis();
-    validRefresh = false;
   }
 }
