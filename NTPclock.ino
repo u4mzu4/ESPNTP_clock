@@ -88,24 +88,9 @@ void WiFi_Config()
   }
 }
 
-void setup() {
-  bool initRefresh = false;
-  unsigned long waitForExactMinute;
-
-  display.clear();
-  display.setBrightness(BRIGHTNESS, true);
-  WiFi_Config();
-  initRefresh = RefreshDateTime();
-  if (initRefresh)
-  {
-    RefreshDisplay(dateTime.hour, dateTime.minute);
-  }
-  else
-  {
-    display.setSegments(SEG_FAIL);
-  }
-  waitForExactMinute = millis() + REFRESH - dateTime.second * 1000;
-  while (waitForExactMinute > millis())
+void WaitForMinute(unsigned long waitUntilNextMinute)
+{
+  while (waitUntilNextMinute > millis())
   {
     delay(1000);
   }
@@ -123,9 +108,30 @@ void setup() {
   RefreshDisplay(dateTime.hour, dateTime.minute);
 }
 
+void setup() {
+  bool initRefresh = false;
+  unsigned long waitForExactMinute;
+
+  display.clear();
+  display.setBrightness(BRIGHTNESS, true);
+  WiFi_Config();
+  initRefresh = RefreshDateTime();
+  if (initRefresh)
+  {
+    RefreshDisplay(dateTime.hour, dateTime.minute);
+  }
+  else
+  {
+    display.setSegments(SEG_FAIL);
+  }
+  waitForExactMinute = millis() + REFRESH - dateTime.second * 1000;
+  WaitForMinute(waitForExactMinute);
+}
+
 void loop() {
   bool validRefresh = false;
   byte storedHour;
+  unsigned long waitForNextMinute;
 
   if ((millis() - lastRefresh) > REFRESH)
   {
@@ -142,6 +148,13 @@ void loop() {
         {
           dateTime.hour = 0;
         }
+      }
+      else
+      {
+        RefreshDisplay(dateTime.hour, dateTime.minute);
+        waitForNextMinute = millis() + REFRESH - dateTime.second * 1000;
+        WaitForMinute(waitForNextMinute);
+        return;
       }
     }
     RefreshDisplay(dateTime.hour, dateTime.minute);
