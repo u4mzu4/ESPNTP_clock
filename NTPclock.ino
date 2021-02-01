@@ -10,18 +10,22 @@
 #define YEAR_MIN    2020
 #define YEAR_MAX    2035
 #define TIMEOUT     5000    //5 sec
-#define BRIGHTNESS  2       //brightness
+#define BRIGHTNESS  7       //brightness during day
+#define NIGHTBRIGHT 2       //brightness during night
 #define REFRESH     60000   //1min
 #define MAXREFRESH  59
 #define MAXMIN      59
 #define MAXHOUR     23
+#define NIGHTBEFORE 7
+#define NIGHTAFTER  21
+
 
 //Global variables
 bool failSafe = false;
 strDateTime dateTime;
 unsigned long lastRefresh;
 const uint8_t SEG_FAIL[] = {
-  SEG_A | SEG_E | SEG_F ,                          // F
+  SEG_A | SEG_E | SEG_F | SEG_G,                   // F
   SEG_A | SEG_B | SEG_C | SEG_E | SEG_F | SEG_G,   // A
   SEG_E | SEG_F,                                   // I
   SEG_D | SEG_E | SEG_F                            // L
@@ -108,6 +112,31 @@ void WaitForMinute(unsigned long waitUntilNextMinute)
   RefreshDisplay(dateTime.hour, dateTime.minute);
 }
 
+void AutoBrightness()
+{
+  static byte actualBrightness = BRIGHTNESS;
+  byte newBrightness;
+
+  if (failSafe)
+  {
+    return;
+  }
+  if ((dateTime.hour < NIGHTBEFORE) || (dateTime.hour > NIGHTAFTER))
+  {
+    newBrightness = NIGHTBRIGHT;
+  }
+  else
+  {
+    newBrightness = BRIGHTNESS;
+  }
+  if (newBrightness != actualBrightness)
+  {
+    display.setBrightness(newBrightness, true);
+    actualBrightness = newBrightness;
+  }
+}
+
+
 void setup() {
   bool initRefresh = false;
   unsigned long waitForExactMinute;
@@ -157,6 +186,7 @@ void loop() {
         return;
       }
     }
+    AutoBrightness();
     RefreshDisplay(dateTime.hour, dateTime.minute);
     lastRefresh = millis();
   }
